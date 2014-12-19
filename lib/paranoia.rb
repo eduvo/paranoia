@@ -111,6 +111,20 @@ module Paranoia
           end
         end
       end
+
+      if association_data.nil? && association.macro.to_s == "has_one"
+        association_class_name = association.options[:class_name].present? ? association.options[:class_name] : association.name.to_s.camelize
+        association_foreign_key = association.foreign_key.present? ? association.foreign_key : "#{self.class.name.to_s.underscore}_id"
+
+        if association.type
+          association_polymorphic_type = association.type
+          association_find_conditions = { association_polymorphic_type => self.class.name.to_s, association_foreign_key => self.id }
+        else
+          association_find_conditions = { association_foreign_key => self.id }
+        end
+
+        Object.const_get(association_class_name).only_deleted.where(association_find_conditions).first.try(:restore, recursive: true)
+      end
     end
   end
 end

@@ -21,6 +21,7 @@ ActiveRecord::Base.connection.execute 'CREATE TABLE employees (id INTEGER NOT NU
 ActiveRecord::Base.connection.execute 'CREATE TABLE jobs (id INTEGER NOT NULL PRIMARY KEY, employer_id INTEGER NOT NULL, employee_id INTEGER NOT NULL, deleted_at DATETIME)'
 ActiveRecord::Base.connection.execute 'CREATE TABLE custom_column_models (id INTEGER NOT NULL PRIMARY KEY, destroyed_at DATETIME)'
 ActiveRecord::Base.connection.execute 'CREATE TABLE non_paranoid_models (id INTEGER NOT NULL PRIMARY KEY, parent_model_id INTEGER)'
+ActiveRecord::Base.connection.execute 'CREATE TABLE polymorphic_models (id INTEGER NOT NULL PRIMARY KEY, parent_id INTEGER, parent_type STRING, deleted_at DATETIME)'
 
 class ParanoiaTest < Test::Unit::TestCase
   def test_plain_model_class_is_not_paranoid
@@ -415,8 +416,21 @@ class ParanoiaTest < Test::Unit::TestCase
 
     # Does it raise NoMethodException on restore of nil
     hasOne.restore(:recursive => true)
-    
+
     assert hasOne.reload.deleted_at.nil?
+  end
+
+  def test_restore_recursive_on_polymorphic_has_one_association
+    parent = ParentModel.create
+    polymorphic = PolymorphicModel.create(parent: parent)
+
+    parent.destroy
+
+    assert_equal 0, polymorphic.class.count
+
+    parent.restore(recursive: true)
+
+    assert_equal 1, polymorphic.class.count
   end
 
   def test_observers_notified
@@ -489,6 +503,7 @@ class ParentModel < ActiveRecord::Base
   has_many :related_models
   has_many :very_related_models, :class_name => 'RelatedModel', dependent: :destroy
   has_many :non_paranoid_models, dependent: :destroy
+  has_one :polymorphic_model, as: :parent, dependent: :destroy
 end
 
 class RelatedModel < ActiveRecord::Base
@@ -519,6 +534,11 @@ class CustomColumnModel < ActiveRecord::Base
 end
 
 class NonParanoidModel < ActiveRecord::Base
+end
+
+class PolymorphicModel < ActiveRecord::Base
+  acts_as_paranoid
+  belongs_to :parent, polymorphic: true
 end
 
 class ParanoidModelWithObservers < ParanoidModel
