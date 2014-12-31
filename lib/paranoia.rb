@@ -142,6 +142,7 @@ class ActiveRecord::Base
       if dependent_reflections.any?
         dependent_reflections.each do |name, _|
           associated_records = self.send(name)
+          next if associated_records.blank? || !associated_records.is_a?(Array)
           # Paranoid models will have this method, non-paranoid models will not
           associated_records = associated_records.with_deleted if associated_records.respond_to?(:with_deleted)
           associated_records.each(&:really_destroy!)
