@@ -16,6 +16,10 @@ module Paranoia
       scoped.tap { |x| x.default_scoped = false }
     end
 
+    def without_deleted
+      where(paranoia_column => nil)
+    end
+
     def only_deleted
       with_deleted.where("#{self.table_name}.#{paranoia_column} IS NOT NULL")
     end
@@ -155,7 +159,7 @@ class ActiveRecord::Base
     class_attribute :paranoia_column
 
     self.paranoia_column = options[:column] || :deleted_at
-    default_scope { where(self.quoted_table_name + ".#{paranoia_column} IS NULL") }
+    default_scope { where(self.quoted_table_name + ".#{paranoia_column} IS NULL") } unless options[:default_scope] == false
 
     before_restore {
       self.class.notify_observers(:before_restore, self) if self.class.respond_to?(:notify_observers)
